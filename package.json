@@ -1,10 +1,13 @@
 {
-  "name": "Task Tracker",
+  "name": "task-tracker",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "tasker": "index.js"
   },
   "keywords": [],
   "author": "",
