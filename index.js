@@ -75,15 +75,98 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
 
     rl.close()
   } else if (input.match(/^l(ist)/i)) {
+    let prompt = input.replace(/^l(ist)/, '').trim()
+    let data
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
-      if (err) {
-        console.error(err)
-      }
       try {
-        const data = JSON.parse(jsonString)
-        console.log(data)
+        data = JSON.parse(jsonString)
       } catch (error) {
         console.error(error)
+      }
+      if (err) {
+        if (err.code === 'ENOENT') {
+          console.log('Tasks: 0')
+        } else {
+          console.error(err)
+        }
+      } else if (prompt.match(/-/)) {
+        data.forEach(element => {
+          switch (element.status) {
+            case 'to-do':
+              console.log(element.description)
+              break
+            case 'in-progress':
+              console.log(element.description)
+              break
+            case 'done':
+              console.log(element.description)
+              break
+            case 'canceled':
+              console.log(element.description)
+              break
+            case 'incomplete':
+              console.log(element.description)
+              break
+          }
+        })
+
+        console.log(`Completed in last 24 hours: ${completedinlast24}`)
+      } else if (prompt.match(/^t(o-do)/)) {
+        data.forEach(element => {
+          if (element.status === 'to-do') {
+            console.log(element.description)
+          }
+        })
+      } else if (prompt.match(/^i(n-progress)/)) {
+        data.forEach(element => {
+          if (element.status === 'in-progress') {
+            console.log(element.description)
+          }
+        })
+      } else if (prompt.match(/^d(one)/)) {
+        data.forEach(element => {
+          if (element.status === 'done') {
+            console.log(element.description)
+          }
+        })
+      } else if (prompt.match(/^c(anceled)/)) {
+        data.forEach(element => {
+          if (element.status === 'canceled') {
+            console.log(element.description)
+          }
+        })
+      } else if (prompt.match(/^i(ncomplete)/)) {
+        data.forEach(element => {
+          if (element.status === 'incomplete') {
+            console.log(element.description)
+          }
+        })
+      } else if (prompt.match(/^r(atio)/)) {
+        let allTasks = data.length
+        let completedTasks = 0
+        data.forEach(element => {
+          if (element.status === 'done') {
+            completedTasks++
+          }
+        })
+        console.log(`${completedTasks}/${allTasks}`)
+      } else if (prompt.match(/^l(ast-24)/)) {
+        let completedinlast24 = 0
+        const last24 = new Date(-24 * 3600 * 1000)
+
+        data.forEach(element => {
+          if (element.completedAt) {
+            const completedAt = new Date(element.completedAt)
+            if (completedAt > last24) {
+              completedinlast24++
+            }
+          }
+        })
+        console.log(`Completed in last 24 hours: ${completedinlast24}`)
+      } else {
+        data.forEach(element => {
+          console.error(element.description)
+        })
       }
     })
   } else if (input.match(/^u(pdate)/i)) {
@@ -98,8 +181,6 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         console.error(error)
       }
     })
-  } else if (input.match(/^t(est)/)) {
-    console.log(typeof input)
   } else {
     console.error('Invalid')
     rl.close()
