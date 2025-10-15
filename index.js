@@ -170,19 +170,55 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
       }
     })
   } else if (input.match(/^u(pdate)/i)) {
+    let prompt = input.replace(/^u(pdate)/, '').trim()
+    let tasks
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
-        console.error(err)
+        if (err.code === 'ENOENT') {
+          console.error('No file')
+        } else {
+          console.error(err)
+        }
       }
       try {
-        let data = JSON.parse(jsonString)
+        tasks = JSON.parse(jsonString)
         //data.task.updatedAt = new Date()
       } catch (error) {
         console.error(error)
       }
+
+      let id = prompt.match(/^[0-9]+/g)[0]
+
+      let obj = tasks.find(obj => obj.id == id)
+
+      //How to check if id matches a task in the array
+      if (obj === undefined) {
+        console.error(`Task with id (${id}) does not exist`)
+        rl.close()
+      } else {
+        prompt = prompt.replace(/^[0-9]+/, '').trim()
+
+        let task = new Task()
+        task.id = obj.id
+        task.description = prompt
+        task.status = obj.status
+        task.completedAt = obj.completedAt
+        task.createdAt = obj.createdAt
+        task.updatedAt = new Date()
+
+        tasks[id - 1] = task
+
+        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
+          if (err) {
+            console.error(err)
+          }
+          console.log(`Task updated successfully (ID: ${id})`)
+          rl.close()
+        })
+      }
     })
   } else {
-    console.error('Invalid')
+    console.error('Invalid command')
     rl.close()
   }
 })
