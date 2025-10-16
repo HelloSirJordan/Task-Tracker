@@ -89,7 +89,7 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         } else {
           console.error(err)
         }
-      } else if (prompt.match(/-/)) {
+      } else if (prompt.length == 0) {
         data.forEach(element => {
           switch (element.status) {
             case 'to-do':
@@ -110,7 +110,6 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
           }
         })
 
-        console.log(`Completed in last 24 hours: ${completedinlast24}`)
       } else if (prompt.match(/^t(o-do)/)) {
         data.forEach(element => {
           if (element.status === 'to-do') {
