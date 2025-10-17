@@ -295,6 +295,57 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         })
       }
     })
+  } else if (input.match(/^d(elete)/i)) {
+    fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          console.error('No file')
+        } else {
+          console.error(err)
+          return
+        }
+      }
+      try {
+        tasks = JSON.parse(jsonString)
+        //data.task.updatedAt = new Date()
+      } catch (error) {
+        console.error(error)
+        return
+      }
+      let prompt = input.replace(/^d(elete)/, '').trim()
+      let id = Number(prompt.match(/^[0-9]+/g)[0])
+      if (id !== typeof Number) {
+        console.error('ID must be a number')
+      }
+
+      let obj = tasks.find(obj => obj.id == id)
+
+      if (obj === undefined) {
+        console.error(`Task with id (${id}) does not exist`)
+        rl.close()
+      } else {
+        console.log(typeof id)
+
+        let filteredTasks = tasks.filter(item => item.id !== id)
+
+        console.log('filteredItems', filteredTasks)
+
+        console.log(tasks)
+        tasks.pop()
+
+        fs.writeFile(
+          './tasks.json',
+          JSON.stringify(filteredTasks, null, 2),
+          err => {
+            if (err) {
+              console.error(err)
+            }
+            console.log(`Task Deleted successfully (ID: ${id})`)
+            rl.close()
+          }
+        )
+      }
+    })
   } else {
     console.error('Invalid command')
     rl.close()
