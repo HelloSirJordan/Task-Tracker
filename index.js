@@ -63,7 +63,7 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
     fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
       if (err) {
         if (err.code === 'ENOENT') {
-          task.id++
+          task.id = 1
 
           tasks.push(task)
           fs.writeFileSync(
@@ -80,13 +80,18 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
           console.log('Unknown error')
         }
       } else {
-        let data = JSON.parse(jsonString)
+        let tasks = JSON.parse(jsonString)
 
-        task.id = data.length + 1
+        const ids = tasks.map(item => item.id)
+        if (ids.length > 0) {
+          task.id = Math.max(...ids) + 1
+        } else {
+          task.id = 1
+        }
 
-        data.push(task)
+        tasks.push(task)
 
-        fs.writeFile('./tasks.json', JSON.stringify(data, null, 2), err => {
+        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
           if (err) {
             console.error(err)
           }
