@@ -18,8 +18,30 @@ class Task {
   }
 
   updateStatus (status) {
-    this.status = status
+    switch (status) {
+      case 'to-do':
+        this.status = 'to-do'
+        break
+      case 'in-progress':
+        this.status = 'in-progress'
+        break
+      case 'done':
+        this.status = 'done'
+        break
+      case 'canceled':
+        this.status = 'canceled'
+        break
+      case 'incomplete':
+        this.status = 'incomplete'
+        break
+      default:
+        console.error(
+          `${status} is not a valid status. use -h for more details`
+        )
+        throw error
+    }
     this.updatedAt = new Date()
+
     if (status === 'done') {
       this.completedAt = new Date()
     } else {
@@ -109,7 +131,6 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
               break
           }
         })
-
       } else if (prompt.match(/^t(o-do)/)) {
         data.forEach(element => {
           if (element.status === 'to-do') {
@@ -190,7 +211,6 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
 
       let obj = tasks.find(obj => obj.id == id)
 
-      //How to check if id matches a task in the array
       if (obj === undefined) {
         console.error(`Task with id (${id}) does not exist`)
         rl.close()
@@ -205,6 +225,60 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         task.createdAt = obj.createdAt
         task.updatedAt = new Date()
 
+        tasks[id - 1] = task
+
+        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
+          if (err) {
+            console.error(err)
+          }
+          console.log(`Task updated successfully (ID: ${id})`)
+          rl.close()
+        })
+      }
+    })
+  } else if (input.match(/^m(ark)/i)) {
+    fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          console.error('No file')
+        } else {
+          console.error(err)
+          return
+        }
+      }
+      try {
+        tasks = JSON.parse(jsonString)
+        //data.task.updatedAt = new Date()
+      } catch (error) {
+        console.error(error)
+      }
+      let prompt = input.replace(/^m(ark)/, '').trim()
+      let id = prompt.match(/^[0-9]+/g)[0]
+      let status = prompt.replace(/^[0-9]+/, '').trim()
+
+      let obj = tasks.find(obj => obj.id == id)
+
+      if (obj === undefined) {
+        console.error(`Task with id (${id}) does not exist`)
+        rl.close()
+      } else {
+        let task = new Task()
+
+        try {
+          task.updateStatus(status)
+        } catch (error) {
+          rl.close()
+          return
+        }
+        console.log('next')
+
+        task.id = obj.id
+        task.description = obj.description
+        task.completedAt = obj.completedAt
+        task.createdAt = obj.createdAt
+        task.updateStatus(status)
+
+        console.log(task)
         tasks[id - 1] = task
 
         fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
