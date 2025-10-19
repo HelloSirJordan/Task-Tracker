@@ -6,104 +6,224 @@ const { stdin: input, stdout: output } = require('node:process')
 const { json } = require('node:stream/consumers')
 const rl = readline.createInterface({ input, output })
 
-let tasks = []
-class Task {
+class Tasks {
   constructor () {
-    this.id = 0
-    this.description = ''
+    this.tasks = []
+  }
+
+  readFile () {
+    fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
+      if (err) {
+        if (err) return
+        else {
+          return (data = JSON.parse(jsonString))
+        }
+      }
+    })
+  }
+
+  writeFile () {
+    fs.writeFileSync('./tasks.json', JSON.stringify(tasksArr, null, 2), err => {
+      if (err) {
+        console.error(err)
+      }
+    })
+  }
+
+  addTask (description) {
+    let task = new Task(this.getNewID(), description)
+    this.tasks.push(task)
+    console.log(`Task added successfully (ID: ${task.id})`)
+    this.writeFile()
+  }
+
+  addTasks (tasks) {
+    this.tasks.push(...tasks)
+  }
+
+  listByStatus (status) {
+    let newArr = []
+    this.tasks.forEach(task => {
+      if (task.status === status) {
+        newArr.push(task)
+      }
+    })
+    console.log(`${status}: ${newArr.length}`)
+    newArr.forEach(task => {
+      console.log(task.description)
+    })
+  }
+
+  listAll () {
+    this.listByStatus('to-do')
+    this.listByStatus('in-progress')
+    this.listByStatus('done')
+    this.listByStatus('canceled')
+    this.listByStatus('incomplete')
+  }
+
+  UpdateTask (id, description) {
+    const arrIndex = this.tasks.findIndex(task => task.id == id)
+
+    if (arrIndex !== -1) {
+      this.tasks[arrIndex].description = description
+      this.tasks[arrIndex].updatedAt = new Date()
+      this.writeFile()
+      console.log(`Task updated successfully (ID: ${id})`)
+      return
+    } else {
+      console.error(`Task with id (${id}) does not exist`)
+      return
+    }
+  }
+
+  updateStatus (id, status) {
+    let arrIndex = this.tasks.findIndex(task => task.id == id)
+    if (arrIndex !== -1) {
+      switch (status) {
+        case 'to-do':
+          this.tasks[arrIndex].status = 'to-do'
+          break
+        case 'in-progress':
+          this.tasks[arrIndex].status = 'in-progress'
+          break
+        case 'done':
+          this.tasks[arrIndex].status = 'done'
+          break
+        case 'canceled':
+          this.tasks[arrIndex].status = 'canceled'
+          break
+        case 'incomplete':
+          this.tasks[arrIndex].status = 'incomplete'
+          break
+        default:
+          console.error(
+            `${status} is not a valid status. use -h for more details`
+          )
+          return
+      }
+      this.tasks[arrIndex].updatedAt = new Date()
+
+      if (status === 'done') {
+        this.tasks[arrIndex].completedAt = new Date()
+      } else {
+        this.tasks[arrIndex].completedAt = ''
+      }
+      this.writeFile()
+      console.log(`Task status updated successfully (ID: ${id})`)
+    } else {
+      console.error(`Task with id (${id}) does not exist`)
+    }
+  }
+
+  deleteTask (id) {
+    let arrIndex = this.tasks.findIndex(task => task.id == id)
+
+    if (arrIndex !== -1) {
+      let deletedTask = this.tasks.splice(arrIndex, 1)
+      this.writeFile()
+      console.log(`Task Deleted successfully (ID: ${id})`)
+    } else {
+      console.error(`Task with id (${id}) does not exist`)
+    }
+  }
+  // Helper for updating (description and statys) and deleting tasks
+  findTask (id) {
+    let task = this.tasks.find(task => task.id == id)
+    if (task !== undefined) {
+      return task
+    } else {
+      console.error(`Task with id (${id}) does not exist`)
+      throw error
+    }
+  }
+  // Helper for adding tasks
+  getNewID () {
+    let newID = 0
+    const ids = this.tasks.map(task => task.id)
+    if (ids.length > 0) {
+      newID = Math.max(...ids) + 1
+    } else {
+      newID = 1
+    }
+
+    return newID
+  }
+  // Helper for listing ratio
+  getRatio () {
+    const allTasks = this.tasks.length
+
+    let completedTasks = 0
+    let ratio
+    this.tasks.forEach(task => {
+      if (task.status === 'done') {
+        completedTasks++
+      }
+    })
+    ratio = `${completedTasks}/${allTasks}`
+
+    return ratio
+  }
+  // Helper for listing completed in last 24 hours
+  getLast24 () {
+    const last24 = new Date(-24 * 3600 * 1000)
+    let completedinlast24 = 0
+
+    this.tasks.forEach(element => {
+      if (element.completedAt) {
+        const completedAt = new Date(element.completedAt)
+        if (completedAt > last24) {
+          completedinlast24++
+        }
+      }
+    })
+    return completedinlast24
+  }
+}
+
+class Task {
+  constructor (id, description) {
+    // Make ID getNewID function from Tasks class
+    this.id = id
+    this.description = description
     this.status = 'to-do' //enum to-do, inprogress, done, canceled, incomplete
     this.completedAt = ''
     this.createdAt = new Date()
     this.updatedAt = ''
   }
-
-  updateStatus (status) {
-    switch (status) {
-      case 'to-do':
-        this.status = 'to-do'
-        break
-      case 'in-progress':
-        this.status = 'in-progress'
-        break
-      case 'done':
-        this.status = 'done'
-        break
-      case 'canceled':
-        this.status = 'canceled'
-        break
-      case 'incomplete':
-        this.status = 'incomplete'
-        break
-      default:
-        console.error(
-          `${status} is not a valid status. use -h for more details`
-        )
-        throw error
-    }
-    this.updatedAt = new Date()
-
-    if (status === 'done') {
-      this.completedAt = new Date()
-    } else {
-      this.completedAt = ''
-    }
-  }
 }
+
+let tasksArr = new Tasks()
 
 rl.question('Wellcome to tasker! What would you like to do:\n', input => {
   if (input.match(/(-h)/i)) {
     console.log('help...')
     rl.close()
   } else if (input.match(/^a(dd)/i)) {
-    let task = new Task()
-    task.description = input.replace(/^a(dd)/, '').trim()
+    const prompt = input.replace(/^a(dd)/, '').trim()
+
     fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
       if (err) {
         if (err.code === 'ENOENT') {
-          task.id = 1
-
-          tasks.push(task)
-          fs.writeFileSync(
-            './tasks.json',
-            JSON.stringify(tasks, null, 2),
-            err => {
-              if (err) {
-                console.error(err)
-              }
-            }
-          )
-          console.log(`Task added successfully (ID: ${task.id})`)
+          tasksArr.addTask(prompt)
         } else {
           console.log('Unknown error')
         }
       } else {
-        let tasks = JSON.parse(jsonString)
-
-        const ids = tasks.map(item => item.id)
-        if (ids.length > 0) {
-          task.id = Math.max(...ids) + 1
-        } else {
-          task.id = 1
-        }
-
-        tasks.push(task)
-
-        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
-          if (err) {
-            console.error(err)
-          }
-        })
-        console.log(`Task added successfully (ID: ${task.id})`)
+        let data = JSON.parse(jsonString)
+        tasksArr.addTasks(data.tasks)
+        tasksArr.addTask(prompt)
       }
     })
 
     rl.close()
   } else if (input.match(/^l(ist)/i)) {
     let prompt = input.replace(/^l(ist)/, '').trim()
-    let data
+
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       try {
-        data = JSON.parse(jsonString)
+        const data = JSON.parse(jsonString)
+        tasksArr.addTasks(data.tasks)
       } catch (error) {
         console.error(error)
       }
@@ -114,86 +234,31 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
           console.error(err)
         }
       } else if (prompt.length == 0) {
-        data.forEach(element => {
-          switch (element.status) {
-            case 'to-do':
-              console.log(element.description)
-              break
-            case 'in-progress':
-              console.log(element.description)
-              break
-            case 'done':
-              console.log(element.description)
-              break
-            case 'canceled':
-              console.log(element.description)
-              break
-            case 'incomplete':
-              console.log(element.description)
-              break
-          }
-        })
+        tasksArr.listAll()
       } else if (prompt.match(/^t(o-do)/)) {
-        data.forEach(element => {
-          if (element.status === 'to-do') {
-            console.log(element.description)
-          }
-        })
+        tasksArr.listByStatus('to-do')
       } else if (prompt.match(/^i(n-progress)/)) {
-        data.forEach(element => {
-          if (element.status === 'in-progress') {
-            console.log(element.description)
-          }
-        })
+        tasksArr.listByStatus('in-progress')
       } else if (prompt.match(/^d(one)/)) {
-        data.forEach(element => {
-          if (element.status === 'done') {
-            console.log(element.description)
-          }
-        })
+        tasksArr.listByStatus('done')
       } else if (prompt.match(/^c(anceled)/)) {
-        data.forEach(element => {
-          if (element.status === 'canceled') {
-            console.log(element.description)
-          }
-        })
+        tasksArr.listByStatus('canceled')
       } else if (prompt.match(/^i(ncomplete)/)) {
-        data.forEach(element => {
-          if (element.status === 'incomplete') {
-            console.log(element.description)
-          }
-        })
+        tasksArr.listByStatus('incomplete')
       } else if (prompt.match(/^r(atio)/)) {
-        let allTasks = data.length
-        let completedTasks = 0
-        data.forEach(element => {
-          if (element.status === 'done') {
-            completedTasks++
-          }
-        })
-        console.log(`${completedTasks}/${allTasks}`)
+        const raito = tasksArr.getRatio()
+        console.log(raito)
       } else if (prompt.match(/^l(ast-24)/)) {
-        let completedinlast24 = 0
-        const last24 = new Date(-24 * 3600 * 1000)
-
-        data.forEach(element => {
-          if (element.completedAt) {
-            const completedAt = new Date(element.completedAt)
-            if (completedAt > last24) {
-              completedinlast24++
-            }
-          }
-        })
-        console.log(`Completed in last 24 hours: ${completedinlast24}`)
+        const last24 = tasksArr.getLast24()
+        console.log(last24)
       } else {
-        data.forEach(element => {
-          console.error(element.description)
-        })
+        console.error('Unknown list command, try list or list [status] ')
       }
     })
+    rl.close()
   } else if (input.match(/^u(pdate)/i)) {
     let prompt = input.replace(/^u(pdate)/, '').trim()
-    let tasks
+
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
         if (err.code === 'ENOENT') {
@@ -203,41 +268,22 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         }
       }
       try {
-        tasks = JSON.parse(jsonString)
-        //data.task.updatedAt = new Date()
+        const data = JSON.parse(jsonString)
+        console.log('data: ', data)
+
+        tasksArr.addTasks(data.tasks)
       } catch (error) {
         console.error(error)
       }
 
       let id = prompt.match(/^[0-9]+/g)[0]
+      console.log(`User ID: ${id}`)
 
-      let obj = tasks.find(obj => obj.id == id)
+      prompt = prompt.replace(/^[0-9]+/, '').trim()
 
-      if (obj === undefined) {
-        console.error(`Task with id (${id}) does not exist`)
-        rl.close()
-      } else {
-        prompt = prompt.replace(/^[0-9]+/, '').trim()
-
-        let task = new Task()
-        task.id = obj.id
-        task.description = prompt
-        task.status = obj.status
-        task.completedAt = obj.completedAt
-        task.createdAt = obj.createdAt
-        task.updatedAt = new Date()
-
-        tasks[id - 1] = task
-
-        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
-          if (err) {
-            console.error(err)
-          }
-          console.log(`Task updated successfully (ID: ${id})`)
-          rl.close()
-        })
-      }
+      tasksArr.UpdateTask(id, prompt)
     })
+    rl.close()
   } else if (input.match(/^m(ark)/i)) {
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
@@ -249,8 +295,8 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         }
       }
       try {
-        tasks = JSON.parse(jsonString)
-        //data.task.updatedAt = new Date()
+        data = JSON.parse(jsonString)
+        tasksArr.addTasks(data.tasks)
       } catch (error) {
         console.error(error)
       }
@@ -258,40 +304,9 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
       let id = prompt.match(/^[0-9]+/g)[0]
       let status = prompt.replace(/^[0-9]+/, '').trim()
 
-      let obj = tasks.find(obj => obj.id == id)
-
-      if (obj === undefined) {
-        console.error(`Task with id (${id}) does not exist`)
-        rl.close()
-      } else {
-        let task = new Task()
-
-        try {
-          task.updateStatus(status)
-        } catch (error) {
-          rl.close()
-          return
-        }
-        console.log('next')
-
-        task.id = obj.id
-        task.description = obj.description
-        task.completedAt = obj.completedAt
-        task.createdAt = obj.createdAt
-        task.updateStatus(status)
-
-        console.log(task)
-        tasks[id - 1] = task
-
-        fs.writeFile('./tasks.json', JSON.stringify(tasks, null, 2), err => {
-          if (err) {
-            console.error(err)
-          }
-          console.log(`Task updated successfully (ID: ${id})`)
-          rl.close()
-        })
-      }
+      tasksArr.updateStatus(id, status)
     })
+    rl.close()
   } else if (input.match(/^d(elete)/i)) {
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
@@ -303,46 +318,18 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         }
       }
       try {
-        tasks = JSON.parse(jsonString)
-        //data.task.updatedAt = new Date()
+        data = JSON.parse(jsonString)
+        tasksArr.addTasks(data.tasks)
       } catch (error) {
         console.error(error)
         return
       }
       let prompt = input.replace(/^d(elete)/, '').trim()
       let id = Number(prompt.match(/^[0-9]+/g)[0])
-      if (id !== typeof Number) {
-        console.error('ID must be a number')
-      }
 
-      let obj = tasks.find(obj => obj.id == id)
-
-      if (obj === undefined) {
-        console.error(`Task with id (${id}) does not exist`)
-        rl.close()
-      } else {
-        console.log(typeof id)
-
-        let filteredTasks = tasks.filter(item => item.id !== id)
-
-        console.log('filteredItems', filteredTasks)
-
-        console.log(tasks)
-        tasks.pop()
-
-        fs.writeFile(
-          './tasks.json',
-          JSON.stringify(filteredTasks, null, 2),
-          err => {
-            if (err) {
-              console.error(err)
-            }
-            console.log(`Task Deleted successfully (ID: ${id})`)
-            rl.close()
-          }
-        )
-      }
+      tasksArr.deleteTask(id)
     })
+    rl.close()
   } else {
     console.error('Invalid command')
     rl.close()
