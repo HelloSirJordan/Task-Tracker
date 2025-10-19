@@ -54,9 +54,6 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
   if (input.match(/(-h)/i)) {
     console.log('help...')
     rl.close()
-  } else if (input.match(/^c(reate)/gi)) {
-    console.log('Create...')
-    rl.close()
   } else if (input.match(/^a(dd)/i)) {
     let task = new Task()
     task.description = input.replace(/^a(dd)/, '').trim()
