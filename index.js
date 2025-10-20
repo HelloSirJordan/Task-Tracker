@@ -4,7 +4,8 @@ const fs = require('node:fs')
 
 const { stdin: input, stdout: output } = require('node:process')
 const { json } = require('node:stream/consumers')
-const rl = readline.createInterface({ input, output })
+
+const rl = readline.createInterface({ input, output, prompt: 'tasker> ' })
 
 class Tasks {
   constructor () {
@@ -193,14 +194,18 @@ class Task {
   }
 }
 
+const args = process.argv.slice(2)
+// rl.prompt()
+
 let tasksArr = new Tasks()
 
-rl.question('Wellcome to tasker! What would you like to do:\n', input => {
-  if (input.match(/(-h)/i)) {
+if (args.length > 0) {
+  const command = args.join(' ')
+  if (command.match(/(-h)/i)) {
     console.log('help...')
     rl.close()
-  } else if (input.match(/^a(dd)/i)) {
-    const prompt = input.replace(/^a(dd)/, '').trim()
+  } else if (command.match(/^a(dd)/i)) {
+    const prompt = command.replace(/^a(dd)/, '').trim()
 
     fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
       if (err) {
@@ -217,8 +222,8 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
     })
 
     rl.close()
-  } else if (input.match(/^l(ist)/i)) {
-    let prompt = input.replace(/^l(ist)/, '').trim()
+  } else if (command.match(/^l(ist)/i)) {
+    let prompt = command.replace(/^l(ist)/, '').trim()
 
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       try {
@@ -256,8 +261,8 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
       }
     })
     rl.close()
-  } else if (input.match(/^u(pdate)/i)) {
-    let prompt = input.replace(/^u(pdate)/, '').trim()
+  } else if (command.match(/^u(pdate)/i)) {
+    let prompt = command.replace(/^u(pdate)/, '').trim()
 
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
@@ -284,7 +289,7 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
       tasksArr.UpdateTask(id, prompt)
     })
     rl.close()
-  } else if (input.match(/^m(ark)/i)) {
+  } else if (command.match(/^m(ark)/i)) {
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
         if (err.code === 'ENOENT') {
@@ -300,14 +305,14 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
       } catch (error) {
         console.error(error)
       }
-      let prompt = input.replace(/^m(ark)/, '').trim()
+      let prompt = command.replace(/^m(ark)/, '').trim()
       let id = prompt.match(/^[0-9]+/g)[0]
       let status = prompt.replace(/^[0-9]+/, '').trim()
 
       tasksArr.updateStatus(id, status)
     })
     rl.close()
-  } else if (input.match(/^d(elete)/i)) {
+  } else if (command.match(/^d(elete)/i)) {
     fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
       if (err) {
         if (err.code === 'ENOENT') {
@@ -324,7 +329,7 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
         console.error(error)
         return
       }
-      let prompt = input.replace(/^d(elete)/, '').trim()
+      let prompt = command.replace(/^d(elete)/, '').trim()
       let id = Number(prompt.match(/^[0-9]+/g)[0])
 
       tasksArr.deleteTask(id)
@@ -334,4 +339,145 @@ rl.question('Wellcome to tasker! What would you like to do:\n', input => {
     console.error('Invalid command')
     rl.close()
   }
-})
+} else {
+  rl.question('Wellcome to tasker! What would you like to do:\n', input => {
+    if (input.match(/(-h)/i)) {
+      console.log('help...')
+      rl.close()
+    } else if (input.match(/^a(dd)/i)) {
+      const prompt = input.replace(/^a(dd)/, '').trim()
+
+      fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            tasksArr.addTask(prompt)
+          } else {
+            console.log('Unknown error')
+          }
+        } else {
+          let data = JSON.parse(jsonString)
+          tasksArr.addTasks(data.tasks)
+          tasksArr.addTask(prompt)
+        }
+      })
+
+      rl.close()
+    } else if (input.match(/^l(ist)/i)) {
+      let prompt = input.replace(/^l(ist)/, '').trim()
+
+      fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+        try {
+          const data = JSON.parse(jsonString)
+          tasksArr.addTasks(data.tasks)
+        } catch (error) {
+          console.error(error)
+        }
+        if (err) {
+          if (err.code === 'ENOENT') {
+            console.log('Tasks: 0')
+          } else {
+            console.error(err)
+          }
+        } else if (prompt.length == 0) {
+          tasksArr.listAll()
+        } else if (prompt.match(/^t(o-do)/)) {
+          tasksArr.listByStatus('to-do')
+        } else if (prompt.match(/^i(n-progress)/)) {
+          tasksArr.listByStatus('in-progress')
+        } else if (prompt.match(/^d(one)/)) {
+          tasksArr.listByStatus('done')
+        } else if (prompt.match(/^c(anceled)/)) {
+          tasksArr.listByStatus('canceled')
+        } else if (prompt.match(/^i(ncomplete)/)) {
+          tasksArr.listByStatus('incomplete')
+        } else if (prompt.match(/^r(atio)/)) {
+          const raito = tasksArr.getRatio()
+          console.log(raito)
+        } else if (prompt.match(/^l(ast-24)/)) {
+          const last24 = tasksArr.getLast24()
+          console.log(last24)
+        } else {
+          console.error('Unknown list command, try list or list [status] ')
+        }
+      })
+      rl.close()
+    } else if (input.match(/^u(pdate)/i)) {
+      let prompt = input.replace(/^u(pdate)/, '').trim()
+
+      fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            console.error('No file')
+          } else {
+            console.error(err)
+          }
+        }
+        try {
+          const data = JSON.parse(jsonString)
+          console.log('data: ', data)
+
+          tasksArr.addTasks(data.tasks)
+        } catch (error) {
+          console.error(error)
+        }
+
+        let id = prompt.match(/^[0-9]+/g)[0]
+        console.log(`User ID: ${id}`)
+
+        prompt = prompt.replace(/^[0-9]+/, '').trim()
+
+        tasksArr.UpdateTask(id, prompt)
+      })
+      rl.close()
+    } else if (input.match(/^m(ark)/i)) {
+      fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            console.error('No file')
+          } else {
+            console.error(err)
+            return
+          }
+        }
+        try {
+          data = JSON.parse(jsonString)
+          tasksArr.addTasks(data.tasks)
+        } catch (error) {
+          console.error(error)
+        }
+        let prompt = input.replace(/^m(ark)/, '').trim()
+        let id = prompt.match(/^[0-9]+/g)[0]
+        let status = prompt.replace(/^[0-9]+/, '').trim()
+
+        tasksArr.updateStatus(id, status)
+      })
+      rl.close()
+    } else if (input.match(/^d(elete)/i)) {
+      fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
+        if (err) {
+          if (err.code === 'ENOENT') {
+            console.error('No file')
+          } else {
+            console.error(err)
+            return
+          }
+        }
+        try {
+          data = JSON.parse(jsonString)
+          tasksArr.addTasks(data.tasks)
+        } catch (error) {
+          console.error(error)
+          return
+        }
+        let prompt = input.replace(/^d(elete)/, '').trim()
+        let id = Number(prompt.match(/^[0-9]+/g)[0])
+
+        tasksArr.deleteTask(id)
+      })
+      rl.close()
+    } else {
+      console.error('Invalid command')
+      rl.close()
+    }
+  })
+}
