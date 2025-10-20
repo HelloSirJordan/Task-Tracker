@@ -50,7 +50,7 @@ class Tasks {
     })
     console.log(`${status}: ${newArr.length}`)
     newArr.forEach(task => {
-      console.log(task.description)
+      console.log(`${task.description} (ID: ${task.id})`)
     })
   }
 
