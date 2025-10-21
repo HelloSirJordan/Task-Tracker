@@ -32,10 +32,15 @@ class Tasks {
   }
 
   addTask (description) {
+    if (description.length !== 0) {
     let task = new Task(this.getNewID(), description)
     this.tasks.push(task)
     console.log(`Task added successfully (ID: ${task.id})`)
     this.writeFile()
+    } else {
+      console.error('Task must have a description')
+      return
+    }
   }
 
   addTasks (tasks) {
@@ -64,14 +69,22 @@ class Tasks {
   }
 
   UpdateTask (id, description) {
+    if (id === null) {
+      console.error('A vaild ID was not provided')
+      return
+    }
     const arrIndex = this.tasks.findIndex(task => task.id == id)
 
     if (arrIndex !== -1) {
+      if (description.length !== 0) {
       this.tasks[arrIndex].description = description
       this.tasks[arrIndex].updatedAt = new Date()
       this.writeFile()
       console.log(`Task updated successfully (ID: ${id})`)
-      return
+        return
+      } else {
+        console.error('Task must have a description')
+      }
     } else {
       console.error(`Task with id (${id}) does not exist`)
       return
@@ -118,6 +131,11 @@ class Tasks {
   }
 
   deleteTask (id) {
+    if (id === null) {
+      console.error('A vaild ID was not provided')
+      return
+    }
+
     let arrIndex = this.tasks.findIndex(task => task.id == id)
 
     if (arrIndex !== -1) {
