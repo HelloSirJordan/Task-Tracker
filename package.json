@@ -1,16 +1,22 @@
 {
-  "name": "task-tracker",
+  "name": "@hellosirjordan/tasker",
   "version": "1.0.0",
-  "description": "",
+  "description": "A CLI app to track and manage your to-do list.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HelloSirJordan/Task-Tracker.git"
+  },
   "bin": {
     "tasker": "index.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "task tracker"
+  ],
+  "author": "HelloSirJordan",
   "license": "ISC",
   "packageManager": "pnpm@10.11.1"
 }
