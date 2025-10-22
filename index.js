@@ -191,7 +191,8 @@ class Tasks {
   }
   // Helper for listing completed in last 24 hours
   getLast24 () {
-    const last24 = new Date(-24 * 3600 * 1000)
+    const last24 = new Date(Date.now() - 24 * 3600 * 1000)
+
     let completedinlast24 = 0
 
     this.tasks.forEach(element => {
