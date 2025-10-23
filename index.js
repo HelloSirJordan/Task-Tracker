@@ -1,10 +1,8 @@
 #! /usr/bin/env node
 const readline = require('node:readline')
-const fs = require('node:fs')
+const fs = require('node:fs').promises
 
 const { stdin: input, stdout: output } = require('node:process')
-const { json } = require('node:stream/consumers')
-const { error } = require('node:console')
 
 const rl = readline.createInterface({ input, output, prompt: 'tasker> ' })
 
@@ -13,154 +11,121 @@ class Tasks {
     this.tasks = []
   }
 
-  readFile () {
-    fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
-      if (err) {
-        if (err) return
-        else {
-          return (data = JSON.parse(jsonString))
-        }
-      }
-    })
+  async readFile () {
+    try {
+      const jsonString = await fs.readFile('./tasks.json', 'utf8')
+
+      this.tasks = JSON.parse(jsonString).tasks || []
+    } catch (err) {
+      if (err.code !== 'ENOENT') console.error(err)
+    }
   }
 
-  writeFile () {
-    fs.writeFileSync('./tasks.json', JSON.stringify(tasksArr, null, 2), err => {
-      if (err) {
-        console.error(err)
-      }
-    })
-  }
-
-  addTask (description) {
-    if (description.length !== 0) {
-      let task = new Task(this.getNewID(), description)
-      this.tasks.push(task)
-      console.log(`Task added successfully (ID: ${task.id})`)
-      this.writeFile()
-    } else {
-      console.error('Task must have a description')
+  async writeFile () {
+    try {
+      await fs.writeFile(
+        './tasks.json',
+        JSON.stringify({ tasks: this.tasks }, null, 2)
+      )
+    } catch (error) {
+      console.error(error)
       return
     }
   }
 
-  addTasks (tasks) {
-    this.tasks.push(...tasks)
+  async addTask (description) {
+    try {
+      this.validateDescription(description)
+      let task = new Task(this.getNewID(), description)
+      this.tasks.push(task)
+      await this.writeFile()
+      console.log(`Task added successfully (ID: ${task.id})`)
+    } catch (error) {
+      console.error(error.message)
+    }
   }
 
   listByStatus (status) {
-    let newArr = []
-    this.tasks.forEach(task => {
-      if (task.status === status) {
-        newArr.push(task)
-      }
-    })
-    console.log(`${status}: ${newArr.length}`)
-    newArr.forEach(task => {
+    const filtered = this.tasks.filter(task => task.status === status)
+
+    console.log(`${status}: ${filtered.length}`)
+
+    filtered.forEach(task => {
       console.log(`${task.description} (ID: ${task.id})`)
     })
   }
 
   listAll () {
-    this.listByStatus('to-do')
-    this.listByStatus('in-progress')
-    this.listByStatus('done')
-    this.listByStatus('canceled')
-    this.listByStatus('incomplete')
+    this.listByStatus(STATUS.TODO)
+    this.listByStatus(STATUS.IN_PROGRESS)
+    this.listByStatus(STATUS.DONE)
+    this.listByStatus(STATUS.CANCELED)
+    this.listByStatus(STATUS.INCOMPLETE)
   }
 
-  UpdateTask (id, description) {
-    if (id === null) {
-      console.error('A vaild ID was not provided')
-      return
-    }
-    const arrIndex = this.tasks.findIndex(task => task.id == id)
+  async updateTask (id, description) {
+    try {
+      this.validateID(id)
+      this.validateDescription(description)
+      const arrIndex = this.tasks.findIndex(task => task.id == id)
 
-    if (arrIndex !== -1) {
-      if (description.length !== 0) {
+      if (arrIndex !== -1) {
         this.tasks[arrIndex].description = description
         this.tasks[arrIndex].updatedAt = new Date()
-        this.writeFile()
+        await this.writeFile()
         console.log(`Task updated successfully (ID: ${id})`)
-        return
-      } else {
-        console.error('Task must have a description')
-      }
-    } else {
-      console.error(`Task with id (${id}) does not exist`)
-      return
+      } else throw new Error(`Task with ID (${id}) does not exist`)
+    } catch (error) {
+      console.error(error.message)
     }
   }
 
-  updateStatus (id, status) {
-    if (id === null) {
-      console.error('A vaild ID was not provided')
-      return
-    }
+  async updateStatus (id, status) {
+    try {
+      this.validateID(id)
+      const arrIndex = this.tasks.findIndex(task => task.id == id)
 
-    let arrIndex = this.tasks.findIndex(task => task.id == id)
-    if (arrIndex !== -1) {
-      switch (status) {
-        case 'to-do':
-          this.tasks[arrIndex].status = 'to-do'
-          break
-        case 'in-progress':
-          this.tasks[arrIndex].status = 'in-progress'
-          break
-        case 'done':
-          this.tasks[arrIndex].status = 'done'
-          break
-        case 'canceled':
-          this.tasks[arrIndex].status = 'canceled'
-          break
-        case 'incomplete':
-          this.tasks[arrIndex].status = 'incomplete'
-          break
-        default:
-          console.error(
-            `${status} is not a valid status. use -h for more details`
-          )
-          return
-      }
+      const validStatuses = Object.values(STATUS)
+      if (!validStatuses.includes(status))
+        throw new Error(`${status} is not a valid status. Use -h for help.`)
+      if (this.tasks[arrIndex].status === status)
+        throw new Error(`Status is already ${status}`)
+      this.tasks[arrIndex].status = status
       this.tasks[arrIndex].updatedAt = new Date()
 
-      if (status === 'done') {
-        this.tasks[arrIndex].completedAt = new Date()
-      } else {
-        this.tasks[arrIndex].completedAt = ''
-      }
-      this.writeFile()
+      this.tasks[arrIndex].completedAt =
+        status === STATUS.DONE ? new Date() : ''
+
+      await this.writeFile()
       console.log(`Task status updated successfully (ID: ${id})`)
-    } else {
-      console.error(`Task with id (${id}) does not exist`)
+    } catch (error) {
+      console.error(error.message)
     }
   }
 
-  deleteTask (id) {
-    if (id === null) {
-      console.error('A vaild ID was not provided')
-      return
-    }
+  async deleteTask (id) {
+    try {
+      this.validateID(id)
+      let arrIndex = this.tasks.findIndex(task => task.id == id)
 
-    let arrIndex = this.tasks.findIndex(task => task.id == id)
+      if (arrIndex !== -1) {
+        this.tasks.splice(arrIndex, 1)
 
-    if (arrIndex !== -1) {
-      let deletedTask = this.tasks.splice(arrIndex, 1)
-      this.writeFile()
-      console.log(`Task Deleted successfully (ID: ${id})`)
-    } else {
-      console.error(`Task with id (${id}) does not exist`)
+        await this.writeFile()
+        console.log(`Task Deleted successfully (ID: ${id})`)
+      } else {
+        console.error(`Task with ID (${id}) does not exist`)
+      }
+    } catch (error) {
+      console.error(error.message)
     }
   }
-  // Helper for updating (description and statys) and deleting tasks
+  // Helper for updating (description and status) and deleting tasks
   findTask (id) {
     let task = this.tasks.find(task => task.id == id)
     if (task !== undefined) {
       return task
-    } else {
-      console.error(`Task with id (${id}) does not exist`)
-      throw error
-    }
+    } else throw new Error(`Task with ID (${id}) does not exist`)
   }
   // Helper for adding tasks
   getNewID () {
@@ -205,6 +170,22 @@ class Tasks {
     })
     return completedinlast24
   }
+
+  validateDescription (desc) {
+    if (!desc || !desc.trim()) throw new Error('Description cannot be empty')
+  }
+
+  validateID (id) {
+    if (!id || isNaN(id)) throw new Error('Invalid task ID')
+  }
+}
+
+const STATUS = {
+  TODO: 'to-do',
+  IN_PROGRESS: 'in-progress',
+  DONE: 'done',
+  CANCELED: 'canceled',
+  INCOMPLETE: 'incomplete'
 }
 
 class Task {
@@ -212,7 +193,7 @@ class Task {
     // Make ID getNewID function from Tasks class
     this.id = id
     this.description = description
-    this.status = 'to-do' //enum to-do, inprogress, done, canceled, incomplete
+    this.status = STATUS.TODO
     this.completedAt = ''
     this.createdAt = new Date()
     this.updatedAt = ''
@@ -220,181 +201,121 @@ class Task {
 }
 
 const args = process.argv.slice(2)
-// rl.prompt()
 
 let tasksArr = new Tasks()
 
-const command = args.join(' ')
-if (command.match(/(-h)/i || command.match(/(-help)/i))) {
-  console.log(`
-Usage:
-  tasker <command> [options] <arguments>
+async function main () {
+  await tasksArr.readFile()
+  const command = args.join(' ')
 
-Description:
-  A simple task tracker CLI tool to add, update, list, and delete tasks.
+  if (/-h|--help/i.test(command)) {
+    console.log(`
+Tasker
+===============
 
-Commands:
-  add <description>           Add a new task.
-  list [status]               List tasks (optionally filtered by status).
-  update <id> <description>   Update the description of an existing task.
-  mark <id> <status>          Change the status of a task.
-  delete <id>                 Remove a task by ID.
+A simple command-line app to manage your tasks efficiently.
 
-Statuses:
-  to-do                       Task is planned but not started.
-  in-progress                 Task is currently in progress.
-  done                        Task is completed.
-  canceled                    Task has been canceled.
-  incomplete                  Task was started but not finished.
+Commands
+--------
+add <description>     Create a new task with the given description
+list [option]         Display tasks (use options below to filter)
+update <id> <desc>    Change the description of task with given ID  
+mark <id> <status>    Update the status of task with given ID
+delete <id>           Remove task with given ID
 
-List Options:
-  ratio                       Show the ratio of completed to total tasks.
-  last-24                     Show how many tasks were completed in the last 24 hours.
+List Options
+------------
+to-do                 Show only tasks marked as to-do
+in-progress           Show only tasks in progress
+done                  Show only completed tasks
+canceled              Show only canceled tasks
+incomplete            Show only incomplete tasks
+ratio                 Display ratio of completed to total tasks
+last-24               Show tasks completed in last 24 hours
 
-Options:
-  -h, --help                  Show this help message and exit.
+Status Values
+------------
+to-do                 Task not yet started
+in-progress           Task currently being worked on
+done                  Task completed successfully
+canceled              Task canceled or abandoned
+incomplete            Task not completed by deadline
 
-Examples:
-  tasker add "Go to the bank"
-  tasker list
-  tasker list done
-  tasker update 1 "Withdraw cash on Monday"
-  tasker mark 1 done
-  tasker delete 1
+Examples
+--------
+tasker add "Complete project proposal"
+tasker list done
+tasker update 1 "Meeting at 3pm instead of 2pm"
+tasker mark 1 in-progress
+tasker delete 1
+
+Help
+----
+-h, --help            Show this help message
 `)
 
-  rl.close()
-} else if (command.match(/^a(dd)/i)) {
-  const prompt = command.replace(/^a(dd)/, '').trim()
+    rl.close()
+  } else if (command.match(/^a(dd)/i)) {
+    const prompt = command.replace(/^a(dd)/, '').trim()
 
-  fs.readFile('./tasks.json', 'utf8', (err, jsonString) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        tasksArr.addTask(prompt)
-      } else {
-        console.log('Unknown error')
-      }
-    } else {
-      let data = JSON.parse(jsonString)
-      tasksArr.addTasks(data.tasks)
-      tasksArr.addTask(prompt)
-    }
-  })
+    tasksArr.addTask(prompt)
 
-  rl.close()
-} else if (command.match(/^l(ist)/i)) {
-  let prompt = command.replace(/^l(ist)/, '').trim()
+    rl.close()
+  } else if (command.match(/^l(ist)/i)) {
+    let prompt = command.replace(/^l(ist)/, '').trim()
 
-  fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
-    try {
-      const data = JSON.parse(jsonString)
-      tasksArr.addTasks(data.tasks)
-    } catch (error) {
-      console.error(error)
-    }
-    if (err) {
-      if (err.code === 'ENOENT') {
-        console.log('Tasks: 0')
-      } else {
-        console.error(err)
-      }
-    } else if (prompt.length == 0) {
+    if (prompt.length == 0) {
       tasksArr.listAll()
     } else if (prompt.match(/^t(o-do)/)) {
-      tasksArr.listByStatus('to-do')
+      tasksArr.listByStatus(STATUS.TODO)
     } else if (prompt.match(/^i(n-progress)/)) {
-      tasksArr.listByStatus('in-progress')
+      tasksArr.listByStatus(STATUS.IN_PROGRESS)
     } else if (prompt.match(/^d(one)/)) {
-      tasksArr.listByStatus('done')
+      tasksArr.listByStatus(STATUS.DONE)
     } else if (prompt.match(/^c(anceled)/)) {
-      tasksArr.listByStatus('canceled')
+      tasksArr.listByStatus(STATUS.CANCELED)
     } else if (prompt.match(/^i(ncomplete)/)) {
-      tasksArr.listByStatus('incomplete')
+      tasksArr.listByStatus(STATUS.INCOMPLETE)
     } else if (prompt.match(/^r(atio)/)) {
-      const raito = tasksArr.getRatio()
-      console.log(raito)
+      const ratio = tasksArr.getRatio()
+      console.log(ratio)
     } else if (prompt.match(/^l(ast-24)/)) {
       const last24 = tasksArr.getLast24()
       console.log(last24)
     } else {
-      //to-do: Change this error mss to be more uniform with other error messages
-      console.error('Unknown list command, try list or list [status] ')
+      console.error('Invalid list option. Use -h for help')
     }
-  })
-  rl.close()
-} else if (command.match(/^u(pdate)/i)) {
-  let prompt = command.replace(/^u(pdate)/, '').trim()
 
-  fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        console.error('No file')
-      } else {
-        console.error(err)
-      }
-    }
-    try {
-      const data = JSON.parse(jsonString)
-
-      tasksArr.addTasks(data.tasks)
-    } catch (error) {
-      console.error(error)
-    }
+    rl.close()
+  } else if (command.match(/^u(pdate)/i)) {
+    let prompt = command.replace(/^u(pdate)/, '').trim()
 
     let id = prompt.match(/^[0-9]+/g)
 
     prompt = prompt.replace(/^[0-9]+/, '').trim()
 
-    tasksArr.UpdateTask(id, prompt)
-  })
-  rl.close()
-} else if (command.match(/^m(ark)/i)) {
-  fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        console.error('No file')
-      } else {
-        console.error(err)
-        return
-      }
-    }
-    try {
-      data = JSON.parse(jsonString)
-      tasksArr.addTasks(data.tasks)
-    } catch (error) {
-      console.error(error)
-    }
+    tasksArr.updateTask(id, prompt)
+
+    rl.close()
+  } else if (command.match(/^m(ark)/i)) {
     let prompt = command.replace(/^m(ark)/, '').trim()
     let id = prompt.match(/^[0-9]+/g)
     let status = prompt.replace(/^[0-9]+/, '').trim()
 
     tasksArr.updateStatus(id, status)
-  })
-  rl.close()
-} else if (command.match(/^d(elete)/i)) {
-  fs.readFile('./tasks.json', 'utf-8', (err, jsonString) => {
-    if (err) {
-      if (err.code === 'ENOENT') {
-        console.error('No file')
-      } else {
-        console.error(err)
-        return
-      }
-    }
-    try {
-      data = JSON.parse(jsonString)
-      tasksArr.addTasks(data.tasks)
-    } catch (error) {
-      console.error(error)
-      return
-    }
+
+    rl.close()
+  } else if (command.match(/^d(elete)/i)) {
     let prompt = command.replace(/^d(elete)/, '').trim()
     let id = prompt.match(/^[0-9]+/g)
 
     tasksArr.deleteTask(id)
-  })
-  rl.close()
-} else {
-  console.error('Invalid command. Use -h for help')
-  rl.close()
+
+    rl.close()
+  } else {
+    console.error('Invalid command. Use -h for help')
+    rl.close()
+  }
 }
+
+main()
