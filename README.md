@@ -51,4 +51,21 @@ tasker mark 1 incomplete
 # Delete task
 
 tasker delete 1
+
+## Data storage
+
+Tasker stores its data in a single JSON file located at:
+
+- Linux/macOS: `~/.local/share/tasker/tasks.json` (or `$XDG_DATA_HOME/tasker/tasks.json` if `XDG_DATA_HOME` is set)
+- Windows: `%APPDATA%/tasker/tasks.json`
+
+Set the `TASKER_DATA_FILE` environment variable if you want to store tasks in a custom location (useful for syncing via git or building automated tests).
+
+## Development
+
+Run the automated tests with:
+
+```bash
+npm test
+```
 ```
