@@ -1,4 +1,4 @@
-#! /usr/bin/env node
+#!/usr/bin/env node
 const readline = require('node:readline')
 const fs = require('node:fs').promises
 
